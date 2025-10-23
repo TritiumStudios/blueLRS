@@ -49,3 +49,8 @@ blueLRS supports a growing list of transceiver modules and flight control system
 
 ## Developers
 Developers are encouraged to participate by submitting Pull Requests on GitHub or joining discussions on Discord. Collaboration across open-source and defense-grade development teams ensures that blueLRS remains both **high-performance** and **compliant with U.S. standards**.
+
+
+**Trademark Notice:** “blueLRS” and “BlueLRS” are trademarks of Ewing Aerospace LLC.
+The software is GPLv3-licensed; trademark use is subject to separate permission.
+See the Trademark Notice in `LICENSE` (or `TRADEMARKS`) for details.
