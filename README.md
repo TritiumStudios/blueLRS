@@ -1,4 +1,4 @@
-![Banner](https://github.com/blueLRS/blob/master/src/img/bannerblrs.png?raw=true)
+![Banner](https://github.com/TritiumStudios/blueLRS/blob/master/src/img/bannerblrs.png?raw=true)
 
 ## About blueLRS
 **blueLRS** is a secure, open-source radio link for remote control and telemetry applications.  
@@ -45,9 +45,7 @@ blueLRS offers the following capabilities:
 - Supports **STM32 Cores**
 
 ## Supported Hardware
-blueLRS supports a growing list of transceiver modules and flight control systems designed or verified for NDAA-compliant use.  
-Each hardware target listed in the Configurator is tested for both performance and supply chain security.
+blueLRS supports a growing list of transceiver modules and flight control systems designed or verified for NDAA-compliant use. Each hardware target listed in the Configurator is tested for both performance and supply chain security.
 
 ## Developers
-Developers are encouraged to participate by submitting Pull Requests on GitHub or joining discussions on Discord.  
-Collaboration across open-source and defense-grade development teams ensures that blueLRS remains both **high-performance** and **compliant with U.S. standards**.
+Developers are encouraged to participate by submitting Pull Requests on GitHub or joining discussions on Discord. Collaboration across open-source and defense-grade development teams ensures that blueLRS remains both **high-performance** and **compliant with U.S. standards**.
