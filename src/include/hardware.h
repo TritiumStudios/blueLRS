@@ -14,6 +14,7 @@ typedef enum {
     HARDWARE_radio_dio0_2,
     HARDWARE_radio_dio1,
     HARDWARE_radio_dio1_2,
+    HARDWARE_radio_dio2,
     HARDWARE_radio_miso,
     HARDWARE_radio_mosi,
     HARDWARE_radio_nss,
@@ -32,6 +33,7 @@ typedef enum {
 
     // Radio power
     HARDWARE_power_enable,
+    HARDWARE_power_apc1,
     HARDWARE_power_apc2,
     HARDWARE_power_rxen,
     HARDWARE_power_txen,
@@ -49,10 +51,8 @@ typedef enum {
 
     HARDWARE_power_control,
     HARDWARE_power_values,
-    HARDWARE_power_values_count,
     HARDWARE_power_values2,
     HARDWARE_power_values_dual,
-    HARDWARE_power_values_dual_count,
 
     // Input
     HARDWARE_joystick,
@@ -149,9 +149,9 @@ typedef enum {
 } nameType;
 
 bool hardware_init();
-int hardware_pin(nameType name);
-bool hardware_flag(nameType name);
-int hardware_int(nameType name);
-float hardware_float(nameType name);
+const int hardware_pin(nameType name);
+const bool hardware_flag(nameType name);
+const int hardware_int(nameType name);
+const float hardware_float(nameType name);
 const int16_t* hardware_i16_array(nameType name);
 const uint16_t* hardware_u16_array(nameType name);

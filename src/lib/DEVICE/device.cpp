@@ -24,10 +24,13 @@
 
 ///////////////////////////////////////
 
+extern bool connectionHasModelMatch;
+
 static device_affinity_t *uiDevices;
 static uint8_t deviceCount;
 
-static uint32_t eventFired[2] = {0, 0};
+static bool eventFired[2] = {false, false};
+static connectionState_e lastConnectionState[2] = {disconnected, disconnected};
 static bool lastModelMatch[2] = {false, false};
 
 static unsigned long deviceTimeout[16] = {0};
@@ -36,7 +39,7 @@ static unsigned long deviceTimeout[16] = {0};
 static TaskHandle_t xDeviceTask = NULL;
 static SemaphoreHandle_t taskSemaphore;
 static SemaphoreHandle_t completeSemaphore;
-[[noreturn]] static void deviceTask(void *pvArgs);
+static void deviceTask(void *pvArgs);
 #define CURRENT_CORE  xPortGetCoreID()
 #else
 #define CURRENT_CORE -1
@@ -61,10 +64,8 @@ void devicesInit()
 
     for(size_t i=0 ; i<deviceCount ; i++) {
         if (uiDevices[i].core == core || core == -1) {
-            if (uiDevices[i].device->initialize && !(uiDevices[i].device->initialize)()) {
-                uiDevices[i].device->start = nullptr;
-                uiDevices[i].device->event = nullptr;
-                uiDevices[i].device->timeout = nullptr;
+            if (uiDevices[i].device->initialize) {
+                (uiDevices[i].device->initialize)();
             }
         }
     }
@@ -109,12 +110,12 @@ void devicesStop()
     #endif
 }
 
-void devicesTriggerEvent(uint32_t events)
+void devicesTriggerEvent()
 {
-    eventFired[0] |= events;
-    eventFired[1] |= events;
+    eventFired[0] = true;
+    eventFired[1] = true;
     #if MULTICORE
-    // Release the semaphore so the tasks on core 0 run now
+    // Release teh semaphore so the tasks on core 0 run now
     xSemaphoreGive(taskSemaphore);
     #endif
 }
@@ -125,16 +126,15 @@ static int _devicesUpdate(unsigned long now)
     const int32_t coreMulti = (core == -1) ? 0 : core;
 
     bool newModelMatch = connectionHasModelMatch && teamraceHasModelMatch;
-    uint32_t events = eventFired[coreMulti];
-    eventFired[coreMulti] = 0;
-    bool handleEvents = events != 0 || lastModelMatch[coreMulti] != newModelMatch;
+    bool handleEvents = eventFired[coreMulti] || lastConnectionState[coreMulti] != connectionState || lastModelMatch[coreMulti] != newModelMatch;
+    eventFired[coreMulti] = false;
+    lastConnectionState[coreMulti] = connectionState;
     lastModelMatch[coreMulti] = newModelMatch;
 
-    if (handleEvents)
+    for(size_t i=0 ; i<deviceCount ; i++)
     {
-        for(size_t i=0 ; i<deviceCount ; i++)
-        {
-            if ((uiDevices[i].core == core || core == -1) && (uiDevices[i].device->event && (uiDevices[i].device->subscribe & events) != 0))
+        if (uiDevices[i].core == core || core == -1) {
+            if (handleEvents && uiDevices[i].device->event)
             {
                 int delay = (uiDevices[i].device->event)();
                 if (delay != DURATION_IGNORE)
@@ -171,7 +171,7 @@ void devicesUpdate(unsigned long now)
 }
 
 #if MULTICORE
-[[noreturn]] static void deviceTask(void *pvArgs)
+static void deviceTask(void *pvArgs)
 {
     xSemaphoreTake(taskSemaphore, portMAX_DELAY);
     devicesInit();
@@ -182,7 +182,7 @@ void devicesUpdate(unsigned long now)
     for (;;)
     {
         int delay = _devicesUpdate(millis());
-        // sleep the core until the desired time, or it's awakened by an event
+        // sleep the core until the desired time or it's awakened by an event
         xSemaphoreTake(taskSemaphore, delay == DURATION_NEVER ? portMAX_DELAY : pdMS_TO_TICKS(delay));
     }
 }

@@ -11,8 +11,19 @@
 #include "devButton.h"
 
 #include <BleGamepad.h>
+#include <NimBLEDevice.h>
 
-static BleGamepad *bleGamepad = nullptr;
+class ELRSGamepad : public BleGamepad {
+    public:
+        ELRSGamepad() : BleGamepad("ExpressLRS Joystick", "ELRS", 100) {};
+
+    protected:
+        void onStarted(NimBLEServer *pServer) {
+            NimBLEDevice::setPower(ESP_PWR_LVL_P9);
+        }
+};
+
+static ELRSGamepad *bleGamepad;
 
 void BluetoothJoystickUpdateValues()
 {
@@ -22,19 +33,16 @@ void BluetoothJoystickUpdateValues()
         int16_t data[8];
         for (uint8_t i = 0; i < 8; i++)
         {
-            data[i] = map(ChannelData[i], CRSF_CHANNEL_VALUE_MIN, CRSF_CHANNEL_VALUE_MAX, bleGamepad->configuration.getAxesMin(), bleGamepad->configuration.getAxesMax());
+            data[i] = map(ChannelData[i], CRSF_CHANNEL_VALUE_MIN, CRSF_CHANNEL_VALUE_MAX, 0, 32767);
         }
         bleGamepad->setAxes(data[0], data[1], data[4], data[5], data[2], data[3], data[6], data[7]);
 
         // map other 8 channels to buttons
         for (uint8_t i = 8; i < 16; i++)
         {
-            if (ChannelData[i] >= CRSF_CHANNEL_VALUE_2000)
-            {
+            if (ChannelData[i] >= CRSF_CHANNEL_VALUE_2000) {
                 bleGamepad->press(i - 7);
-            }
-            else
-            {
+            } else {
                 bleGamepad->release(i - 7);
             }
         }
@@ -47,32 +55,28 @@ void BluetoothJoystickUpdateValues()
 void BluetoothJoystickBegin()
 {
     // bleGamepad is null if it hasn't been started yet
-    if (bleGamepad != nullptr) return;
+    if (bleGamepad != nullptr)
+        return;
 
-    DBGLN("Starting BLE Joystick");
+    // construct the BLE immediately to prevent reentry from events/timeout
+    bleGamepad = new ELRSGamepad();
 
     POWERMGNT::setPower(MinPower);
     Radio.End();
-
-    BleGamepadConfiguration gamepadConfig;
-    gamepadConfig.setAutoReport(false);
-    gamepadConfig.setControllerType(CONTROLLER_TYPE_JOYSTICK); // CONTROLLER_TYPE_JOYSTICK, CONTROLLER_TYPE_GAMEPAD (DEFAULT), CONTROLLER_TYPE_MULTI_AXIS
-    gamepadConfig.setWhichAxes(true, true, true, true, true, true, true, true);	// Enable all axes
-    gamepadConfig.setButtonCount(8);
-
-    bleGamepad = new BleGamepad("ELRS Joystick", "ELRS", 100);
-    bleGamepad->setTXPowerLevel(9);
-    bleGamepad->begin(&gamepadConfig);
-
     handset->setRCDataCallback(BluetoothJoystickUpdateValues);
+
+    BleGamepadConfiguration *gamepadConfig = new BleGamepadConfiguration();
+    gamepadConfig->setAutoReport(false);
+
+    DBGLN("Starting BLE Joystick!");
+    bleGamepad->begin(gamepadConfig);
 }
 
-static bool initialize()
+static void initialize()
 {
-    registerButtonFunction(ACTION_BLE_JOYSTICK, [](){
-        setConnectionState(bleJoystick);
-    });
-    return true;
+  registerButtonFunction(ACTION_BLE_JOYSTICK, [](){
+    connectionState = bleJoystick;
+  });
 }
 
 static int timeout()
@@ -91,11 +95,10 @@ static int event()
 }
 
 device_t BLE_device = {
-    .initialize = initialize,
-    .start = nullptr,
-    .event = event,
-    .timeout = timeout,
-    .subscribe = EVENT_CONNECTION_CHANGED,
+  .initialize = initialize,
+  .start = NULL,
+  .event = event,
+  .timeout = timeout
 };
 
 #endif

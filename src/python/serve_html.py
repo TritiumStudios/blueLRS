@@ -202,7 +202,6 @@ def lr1121_js():
 @route('/lr1121.json')
 def lr1121_json():
     return {
-        "manual": True,
         "radio1": {
             "hardware": 34,
             "type": 3,

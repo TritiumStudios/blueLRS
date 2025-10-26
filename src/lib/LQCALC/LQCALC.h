@@ -12,7 +12,7 @@ public:
     }
 
     /* Set the bit for the current period to true and update the running LQ */
-    void ICACHE_RAM_ATTR add()
+    void add()
     {
         if (currentIsSet())
             return;

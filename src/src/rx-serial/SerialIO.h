@@ -2,12 +2,15 @@
 
 #include "targets.h"
 #include "FIFO.h"
+#include "device.h"
 
 /**
  * @brief Abstract class that is to be extended by implementation classes for different serial protocols on the receiver side.
  *
  * At a minimum, a new protocol extension class should implement the following functions
  *
+ * * queueLinkStatisticsPacket
+ * * queueMSPFrameTransmission
  * * sendRCFrame
  * * sendQueuedData
  * * processBytes
@@ -16,7 +19,7 @@ class SerialIO {
 public:
 
     SerialIO(Stream *output, Stream *input) : _outputPort(output), _inputPort(input) {}
-    virtual ~SerialIO() = default;
+    virtual ~SerialIO() {}
 
     /**
      * @brief Set the Failsafe flag
@@ -28,6 +31,25 @@ public:
      * @param failsafe true when the firmware has detected a failsafe condition.
      */
     void setFailsafe(bool failsafe);
+
+    /**
+     * @brief Signals the protocol to queue a link statistics packet
+     *
+     * The packet should be queued into the `_fifo` member variable as RC packets
+     * are prioritised and ancillary data is sent after the RC data when the
+     * `sendQueuedData` function is called.
+     */
+    virtual void queueLinkStatisticsPacket() = 0;
+
+    /**
+     * @brief Signals that the MSP frame should be queued for transmission.
+     *
+     * The MSP frame should be queued as in `queueLinkStatisticsPacket` so it can be
+     * sent after any RC data.
+     *
+     * @param data pointer to the MSP packet
+     */
+    virtual void queueMSPFrameTransmission(uint8_t* data) = 0;
 
     /**
      * @brief send the RC channel data to the serial port stream `_outputPort` member
@@ -48,8 +70,6 @@ public:
     /**
      * @brief send any previously queued data to the serial port stream `_outputPort`
      * member variable.
-     *
-     * This method is called each time around the main loop.
      */
     virtual void sendQueuedData(uint32_t maxBytesToSend);
 
@@ -61,8 +81,6 @@ public:
      *
      * This method *should* not be overridden by custom implementations, it is
      * only overridden by the `SerialNOOP` implementation.
-     *
-     * This method is called each time around the main loop.
      */
     virtual void processSerialInput();
 
@@ -73,26 +91,18 @@ public:
      */
     virtual int getMaxSerialWriteSize() { return defaultMaxSerialWriteSize; }
 
-    /**
-     * @brief Returns true is the serial protocol driver wants to send RC packets immediately
-     * in the "tock" timer callback rather than waiting for the serial timeout. For example,
-     * CRSF protocol uses this to reduce jitter in the RC commands being sent to the FC.
-     *
-     * @return true of the serial protocol driver wants to send RC packets in "tock"
-     */
-    virtual bool sendImmediateRC() { return false; }
-
 protected:
     /// @brief the output stream for the serial port
     Stream *_outputPort;
     /// @brief flag that indicates the receiver is in the failsafe state
     bool failsafe = false;
 
-    static constexpr uint32_t SERIAL_OUTPUT_FIFO_SIZE = 256U;
+    static const uint32_t SERIAL_OUTPUT_FIFO_SIZE = 256U;
+
 
     /**
      * @brief the FIFO that should be used to queue serial data to in the
-     * `queueMSPFrameTransmission` method implementations.
+     * `queueLinkStatisticsPacket` and `queueMSPFrameTransmission` method implementations.
      */
     FIFO<SERIAL_OUTPUT_FIFO_SIZE> _fifo;
 

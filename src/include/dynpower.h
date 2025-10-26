@@ -1,8 +1,14 @@
 #pragma once
 
+#include <stdint.h>
+#include <config.h>
+#include <POWERMGNT.h>
+#include <CRSF.h>
+#include <logging.h>
+
 #if defined(TARGET_TX)
 
-#include <stdint.h>
+#include <MeanAccumulator.h>
 
 #define DYNPOWER_UPDATE_NOUPDATE -128
 #define DYNPOWER_UPDATE_MISSED   -127

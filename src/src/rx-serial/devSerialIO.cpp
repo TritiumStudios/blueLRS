@@ -2,11 +2,11 @@
 
 #if defined(TARGET_RX)
 
-#include "SerialIO.h"
 #include "common.h"
-#include "config.h"
-#include "crsf_protocol.h"
 #include "device.h"
+#include "SerialIO.h"
+#include "CRSF.h"
+#include "config.h"
 
 #define NO_SERIALIO_INTERVAL 1000
 
@@ -199,10 +199,9 @@ static int timeout(devserial_ctx_t *ctx)
         return NO_SERIALIO_INTERVAL;
     }
 
-    // stop callbacks when serial driver wants immediate sends or when doing serial update
-    if ((*(ctx->io))->sendImmediateRC() || connectionState == serialUpdate)
+    if (connectionState == serialUpdate)
     {
-        return DURATION_NEVER;
+        return DURATION_NEVER;  // stop callbacks when doing serial update
     }
 
     /***
@@ -227,50 +226,13 @@ static int timeout(devserial_ctx_t *ctx)
     // Verify there is new ChannelData and they should be sent on
     bool sendChannels = confirmFrameAvailable(ctx);
 
-    return (*(ctx->io))->sendRCFrame(sendChannels, missed, ChannelData);
-}
+    uint32_t duration = (*(ctx->io))->sendRCFrame(sendChannels, missed, ChannelData);
 
-void sendImmediateRC()
-{
-    if (*(serial0.io) != nullptr && (*(serial0.io))->sendImmediateRC() && connectionState != serialUpdate)
-    {
-        const bool missed = serial0.frameMissed;
-        serial0.frameMissed = false;
-
-        // Verify there is new ChannelData and they should be sent on
-        const bool sendChannels = confirmFrameAvailable(&serial0);
-
-        (*(serial0.io))->sendRCFrame(sendChannels, missed, ChannelData);
-    }
-#if defined(PLATFORM_ESP32)
-    if (*(serial1.io) != nullptr && (*(serial1.io))->sendImmediateRC() && connectionState != serialUpdate)
-    {
-        const bool missed = serial1.frameMissed;
-        serial1.frameMissed = false;
-
-        // Verify the new channel data should be sent on
-        const bool sendChannels = confirmFrameAvailable(&serial1);
-
-        (*(serial1.io))->sendRCFrame(sendChannels, missed, ChannelData);
-    }
-#endif
-}
-
-void handleSerialIO()
-{
-    // still get telemetry and send link stats if there's no model match
-    if (*(serial0.io) != nullptr)
-    {
-        (*(serial0.io))->processSerialInput();
-        (*(serial0.io))->sendQueuedData((*(serial0.io))->getMaxSerialWriteSize());
-    }
-#if defined(PLATFORM_ESP32)
-    if (*(serial1.io) != nullptr)
-    {
-        (*(serial1.io))->processSerialInput();
-        (*(serial1.io))->sendQueuedData((*(serial1.io))->getMaxSerialWriteSize());
-    }
-#endif
+    // still get telemetry and send link stats if theres no model match
+    (*(ctx->io))->processSerialInput();
+    (*(ctx->io))->sendQueuedData((*(ctx->io))->getMaxSerialWriteSize());
+    
+    return duration;
 }
 
 static int timeout0()
@@ -289,8 +251,7 @@ device_t Serial0_device = {
     .initialize = nullptr,
     .start = start,
     .event = event0,
-    .timeout = timeout0,
-    .subscribe = EVENT_CONNECTION_CHANGED
+    .timeout = timeout0
 };
 
 #if defined(PLATFORM_ESP32)
@@ -298,8 +259,7 @@ device_t Serial1_device = {
     .initialize = nullptr,
     .start = start,
     .event = event1,
-    .timeout = timeout1,
-    .subscribe = EVENT_CONNECTION_CHANGED
+    .timeout = timeout1
 };
 #endif
 

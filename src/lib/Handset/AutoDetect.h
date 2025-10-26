@@ -9,6 +9,7 @@ class AutoDetect final : public Handset
 public:
     void Begin() override;
     void End() override;
+    bool IsArmed() override;
     void handleInput() override;
 
 private:

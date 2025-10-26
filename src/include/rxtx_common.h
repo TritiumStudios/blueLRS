@@ -3,6 +3,7 @@
 #include "targets.h"
 #include "common.h"
 #include "config.h"
+#include "CRSF.h"
 #include "FHSS.h"
 #include "helpers.h"
 #include "hwTimer.h"

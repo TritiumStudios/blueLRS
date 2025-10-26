@@ -1,6 +1,11 @@
 #include "targets.h"
 #include "common.h"
 
+#ifdef HAS_GSENSOR
+#if !defined(OPT_HAS_GSENSOR)
+#define OPT_HAS_GSENSOR true
+#endif
+
 #include "devGsensor.h"
 #include <functional>
 
@@ -9,6 +14,12 @@
 #include "POWERMGNT.h"
 #include "config.h"
 #include "logging.h"
+
+#if defined(TARGET_TX)
+extern TxConfig config;
+#else
+extern RxConfig config;
+#endif
 
 Gsensor gsensor;
 
@@ -21,18 +32,23 @@ static int system_quiet_pre_state = GSENSOR_SYSTEM_STATE_MOVING;
 #define MULTIPLE_BUMP_INTERVAL 400U
 #define BUMP_COMMAND_IDLE_TIME 10000U
 
-static bool initialize()
+static bool gSensorOk = false;
+
+static void initialize()
 {
-    if (OPT_HAS_GSENSOR)
+    if (OPT_HAS_GSENSOR && GPIO_PIN_SCL != UNDEF_PIN && GPIO_PIN_SDA != UNDEF_PIN)
     {
-        return gsensor.init();
+        gSensorOk = gsensor.init();
     }
-    return false;
 }
 
 static int start()
 {
-    return DURATION_IMMEDIATELY;
+    if (gSensorOk && OPT_HAS_GSENSOR && GPIO_PIN_SCL != UNDEF_PIN && GPIO_PIN_SDA != UNDEF_PIN)
+    {
+        return DURATION_IMMEDIATELY;
+    }
+    return DURATION_NEVER;
 }
 
 static int timeout()
@@ -68,3 +84,5 @@ device_t Gsensor_device = {
     .event = NULL,
     .timeout = timeout
 };
+
+#endif

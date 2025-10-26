@@ -2,11 +2,13 @@
 
 #include "SerialIO.h"
 
-class SerialNOOP final : public SerialIO {
+class SerialNOOP : public SerialIO {
 public:
     explicit SerialNOOP() : SerialIO(nullptr, nullptr) {}
-    ~SerialNOOP() override = default;
+    virtual ~SerialNOOP() {}
 
+    void queueLinkStatisticsPacket() override {}
+    void queueMSPFrameTransmission(uint8_t* data) override {}
     uint32_t sendRCFrame(bool frameAvailable, bool frameMissed, uint32_t *channelData) override { return  DURATION_NEVER; }
 
     void processSerialInput() override {}

@@ -75,8 +75,7 @@ void StubbornReceiver::ReceiveData(uint8_t const packageIndex, uint8_t const * c
     // skip the resync process entirely and just pretend this is a fresh boot too
     else if (packageIndex == 1 && currentPackage > 1)
     {
-        currentPackage = 1;
-        currentOffset = 0;
+        ResetState();
         acceptData = true;
     }
 

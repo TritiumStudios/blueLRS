@@ -15,8 +15,8 @@
 #define TX_CONFIG_MAGIC     (0b01U << 30)
 #define RX_CONFIG_MAGIC     (0b10U << 30)
 
-#define TX_CONFIG_VERSION   8U
-#define RX_CONFIG_VERSION   10U
+#define TX_CONFIG_VERSION   7U
+#define RX_CONFIG_VERSION   9U
 
 #if defined(TARGET_TX)
 
@@ -44,22 +44,8 @@ typedef enum {
     HT_AUX8_DN,
 } headTrackingEnable_t;
 
-typedef enum {
-    HT_START_EDGETX,
-    HT_START_AUX1,
-    HT_START_AUX2,
-    HT_START_AUX3,
-    HT_START_AUX4,
-    HT_START_AUX5,
-    HT_START_AUX6,
-    HT_START_AUX7,
-    HT_START_AUX8,
-    HT_START_AUX9,
-    HT_START_AUX10,
-} headTrackingStart_t;
-
 typedef struct {
-    uint32_t    rate:5,
+    uint32_t    rate:4,
                 tlm:4,
                 power:3,
                 switchMode:2,
@@ -69,7 +55,7 @@ typedef struct {
                 txAntenna:2,    // FUTURE: Which TX antenna to use, 0=Auto
                 ptrStartChannel:4,
                 ptrEnableChannel:5,
-                linkMode:2;
+                linkMode:3;
 } model_config_t;
 
 typedef struct {
@@ -119,7 +105,7 @@ class TxConfig
 public:
     TxConfig();
     void Load();
-    uint32_t Commit();
+    void Commit();
 
     // Getters
     uint8_t GetRate() const { return m_model->rate; }
@@ -131,7 +117,7 @@ public:
     uint8_t GetAntennaMode() const { return m_model->txAntenna; }
     uint8_t GetLinkMode() const { return m_model->linkMode; }
     bool GetModelMatch() const { return m_model->modelMatch; }
-    bool     IsModified() const { return m_modified != 0; }
+    bool     IsModified() const { return m_modified; }
     uint8_t  GetVtxBand() const { return m_config.vtxBand; }
     uint8_t  GetVtxChannel() const { return m_config.vtxChannel; }
     uint8_t  GetVtxPower() const { return m_config.vtxPower; }
@@ -184,12 +170,11 @@ private:
 #if !defined(PLATFORM_ESP32)
     void UpgradeEepromV5ToV6();
     void UpgradeEepromV6ToV7();
-    void UpgradeEepromV7ToV8();
 #endif
 
     tx_config_t m_config;
     ELRS_EEPROM *m_eeprom;
-    uint32_t     m_modified;
+    uint8_t     m_modified;
     model_config_t *m_model;
     uint8_t     m_modelId;
 #if defined(PLATFORM_ESP32)
@@ -210,7 +195,6 @@ typedef enum : uint8_t {
     BINDSTORAGE_PERSISTENT = 0,
     BINDSTORAGE_VOLATILE = 1,
     BINDSTORAGE_RETURNABLE = 2,
-    BINDSTORAGE_ADMINISTERED = 3,
 } rx_config_bindstorage_t;
 
 typedef union {
@@ -240,9 +224,9 @@ typedef struct __attribute__((packed)) {
     uint8_t     bindStorage:2,     // rx_config_bindstorage_t
                 power:4,
                 antennaMode:2;      // 0=0, 1=1, 2=Diversity
-    uint8_t     powerOnCounter:2,
+    uint8_t     powerOnCounter:3,
                 forceTlmOff:1,
-                rateInitialIdx:5;   // Rate to start rateCycling at on boot
+                rateInitialIdx:4;   // Rate to start rateCycling at on boot
     uint8_t     modelId;
     uint8_t     serialProtocol:4,
                 failsafeMode:2,
@@ -261,7 +245,7 @@ public:
     RxConfig();
 
     void Load();
-    uint32_t Commit();
+    void Commit();
 
     // Getters
     bool     GetIsBound() const;
@@ -274,8 +258,10 @@ public:
     uint8_t  GetModelId() const { return m_config.modelId; }
     uint8_t GetPower() const { return m_config.power; }
     uint8_t GetAntennaMode() const { return m_config.antennaMode; }
-    bool     IsModified() const { return m_modified != 0; }
+    bool     IsModified() const { return m_modified; }
+    #if defined(GPIO_PIN_PWM_OUTPUTS)
     const rx_config_pwm_t *GetPwmChannel(uint8_t ch) const { return &m_config.pwmChannels[ch]; }
+    #endif
     bool GetForceTlmOff() const { return m_config.forceTlmOff; }
     uint8_t GetRateInitialIdx() const { return m_config.rateInitialIdx; }
     eSerialProtocol GetSerialProtocol() const { return (eSerialProtocol)m_config.serialProtocol; }
@@ -298,8 +284,10 @@ public:
     void SetAntennaMode(uint8_t antennaMode);
     void SetDefaults(bool commit);
     void SetStorageProvider(ELRS_EEPROM *eeprom);
+    #if defined(GPIO_PIN_PWM_OUTPUTS)
     void SetPwmChannel(uint8_t ch, uint16_t failsafe, uint8_t inputCh, bool inverted, uint8_t mode, bool narrow);
     void SetPwmChannelRaw(uint8_t ch, uint32_t raw);
+    #endif
     void SetForceTlmOff(bool forceTlmOff);
     void SetRateInitialIdx(uint8_t rateInitialIdx);
     void SetSerialProtocol(eSerialProtocol serialProtocol);
@@ -321,11 +309,10 @@ private:
     void UpgradeEepromV5();
     void UpgradeEepromV6();
     void UpgradeEepromV7V8();
-    void UpgradeEepromV9();
 
     rx_config_t m_config;
     ELRS_EEPROM *m_eeprom;
-    uint32_t    m_modified;
+    bool        m_modified;
 };
 
 extern RxConfig config;

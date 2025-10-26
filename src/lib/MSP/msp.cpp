@@ -1,7 +1,6 @@
 #include "msp.h"
 
 #include "logging.h"
-#include "crc.h"
 
 /* ==========================================
 MSP V2 Message Structure:
@@ -17,11 +16,19 @@ Offset: Usage:         In CRC:  Comment:
 n+8     checksum                uint8, (n= payload size), crc8_dvb_s2 checksum
 ========================================== */
 
-// CRC helper function.
+// CRC helper function. External to MSP class
+// TODO: Move all our CRC functions to a CRC lib
 uint8_t crc8_dvb_s2(uint8_t crc, unsigned char a)
 {
-    static GENERIC_CRC8 crc8_dvb_s2_instance(0xD5);
-    return crc8_dvb_s2_instance.calc(crc ^ a);
+    crc ^= a;
+    for (int ii = 0; ii < 8; ++ii) {
+        if (crc & 0x80) {
+            crc = (crc << 1) ^ 0xD5;
+        } else {
+            crc = crc << 1;
+        }
+    }
+    return crc;
 }
 
 bool

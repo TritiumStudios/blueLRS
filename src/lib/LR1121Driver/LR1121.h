@@ -1,8 +1,9 @@
 #pragma once
 
 #include "targets.h"
-#include "SX12xxDriverCommon.h"
 #include "LR1121_Regs.h"
+#include "LR1121_hal.h"
+#include "SX12xxDriverCommon.h"
 
 #ifdef PLATFORM_ESP8266
 #include <cstdint>
@@ -10,17 +11,15 @@
 
 #define RADIO_SNR_SCALE 4
 
-typedef struct
-{
-    uint8_t hardware;
-    uint8_t type;
-    uint16_t version;
-} __attribute__((packed)) firmware_version_t;
-
 class LR1121Driver: public SX12xxDriverCommon
 {
 public:
     static LR1121Driver *instance;
+
+    ///////////Radio Variables////////
+    uint32_t timeout;
+
+    ///////////////////////////////////
 
     ////////////////Configuration Functions/////////////
     LR1121Driver();
@@ -28,33 +27,27 @@ public:
     void End();
     void SetTxIdleMode() { SetMode(LR1121_MODE_FS, SX12XX_Radio_All); }; // set Idle mode used when switching from RX to TX
     void Config(uint8_t bw, uint8_t sf, uint8_t cr, uint32_t freq,
-                uint8_t PreambleLength, bool InvertIQ, uint8_t PayloadLength, bool setFSKModulation,
+                uint8_t PreambleLength, bool InvertIQ, uint8_t PayloadLength, uint32_t interval, bool setFSKModulation,
                 uint8_t fskSyncWord1, uint8_t fskSyncWord2, SX12XX_Radio_Number_t radioNumber = SX12XX_Radio_All);
-    void SetFrequencyReg(uint32_t freq, SX12XX_Radio_Number_t radioNumber, bool doRx = false, uint32_t rxTime = 0);
+    void SetFrequencyHz(uint32_t freq, SX12XX_Radio_Number_t radioNumber);
+    void SetFrequencyReg(uint32_t freq, SX12XX_Radio_Number_t radioNumber = SX12XX_Radio_All);
+    void SetRxTimeoutUs(uint32_t interval);
     void SetOutputPower(int8_t power, bool isSubGHz = true);
     void startCWTest(uint32_t freq, SX12XX_Radio_Number_t radioNumber);
 
 
-    bool GetFrequencyErrorbool(SX12XX_Radio_Number_t radioNumber);
+    bool GetFrequencyErrorbool();
     // bool FrequencyErrorAvailable() const { return modeSupportsFei && (LastPacketSNRRaw > 0); }
     bool FrequencyErrorAvailable() const { return false; }
 
-    void TXnb(uint8_t *data, bool sendGeminiBuffer, uint8_t * dataGemini, SX12XX_Radio_Number_t radioNumber);
-    void RXnb();
+    void TXnb(uint8_t * data, uint8_t size, SX12XX_Radio_Number_t radioNumber);
+    void RXnb(lr11xx_RadioOperatingModes_t rxMode = LR1121_MODE_RX);
 
     uint32_t GetIrqStatus(SX12XX_Radio_Number_t radioNumber);
     void ClearIrqStatus(SX12XX_Radio_Number_t radioNumber);
 
-    void StartRssiInst(SX12XX_Radio_Number_t radioNumber);
     int8_t GetRssiInst(SX12XX_Radio_Number_t radioNumber);
     void GetLastPacketStats();
-    void CheckForSecondPacket();
-
-    // Firmware update methods
-    firmware_version_t GetFirmwareVersion(SX12XX_Radio_Number_t radioNumber, uint16_t command = LR11XX_SYSTEM_GET_VERSION_OC);
-    int BeginUpdate(SX12XX_Radio_Number_t radioNumber, uint32_t expectedSize);
-    int WriteUpdateBytes(const uint8_t *bytes, uint32_t size);
-    int EndUpdate();
 
 private:
     // constant used for no power change pending
@@ -74,11 +67,6 @@ private:
     lr11xx_RadioOperatingModes_t fallBackMode;
     bool useFEC;
 
-    WORD_ALIGNED_ATTR uint8_t rx_buf[32] = {};
-    WORD_ALIGNED_ATTR uint8_t rx2_buf[32] = {};
-
-    bool CheckVersion(SX12XX_Radio_Number_t radioNumber);
-
     void SetMode(lr11xx_RadioOperatingModes_t OPmode, SX12XX_Radio_Number_t radioNumber);
 
     // LoRa functions
@@ -97,12 +85,8 @@ private:
     static void IsrCallback_1();
     static void IsrCallback_2();
     static void IsrCallback(SX12XX_Radio_Number_t radioNumber);
-
-    void DecodeRssiSnr(SX12XX_Radio_Number_t radioNumber, const uint8_t *buf);
-
     bool RXnbISR(SX12XX_Radio_Number_t radioNumber); // ISR for non-blocking RX routine
     void TXnbISR(); // ISR for non-blocking TX routine
     void CommitOutputPower();
     void WriteOutputPower(uint8_t pwr, bool isSubGHz, SX12XX_Radio_Number_t radioNumber);
-    void SetPaConfig(bool isSubGHz, SX12XX_Radio_Number_t radioNumber);
 };

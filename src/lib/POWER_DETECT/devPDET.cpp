@@ -3,10 +3,17 @@
 #include "device.h"
 #include "logging.h"
 #include "POWERMGNT.h"
-#include "devADC.h"
 
-#if defined(TARGET_TX) && defined(PLATFORM_ESP32)
+#if defined(GPIO_PIN_PA_PDET)
+
+#if defined(USE_SKY85321)
 #define SKY85321_MAX_DBM_INPUT 5
+
+// SKY85321_PDET_SLOPE/INTERCEPT convert mV from analogRead() to dBm
+#if !defined(SKY85321_PDET_SLOPE) || !defined(SKY85321_PDET_INTERCEPT)
+  #error "SKY85321 requires SKY85321_PDET_SLOPE and SKY85321_PDET_INTERCEPT"
+#endif
+#endif // USE_SKY85321
 
 typedef uint32_t pdet_storage_t;
 #define PDET_DBM_SCALE(x)         ((pdet_storage_t)((x) * 1000U))
@@ -14,20 +21,20 @@ typedef uint32_t pdet_storage_t;
 #define PDET_MV_DESCALE(x)        ((pdet_storage_t)((x) / 10U))
 #define PDET_HYSTERESIS_DBMSCALED PDET_DBM_SCALE(0.7)
 #define PDET_SAMPLE_PERIODMS      1000
+#define PDET_BUSY_PERIODMS        999 // 999 to shift the next measurement time into a transmission period.
 
 extern bool busyTransmitting;
 static pdet_storage_t PdetMvScaled;
 static uint8_t lastTargetPowerdBm;
 
-static bool initialize()
-{
-    return GPIO_PIN_PA_PDET != UNDEF_PIN;
-}
-
 static int start()
 {
-    analogSetPinAttenuation(GPIO_PIN_PA_PDET, ADC_0db);
-    return DURATION_IMMEDIATELY;
+    if (GPIO_PIN_PA_PDET != UNDEF_PIN)
+    {
+        analogSetPinAttenuation(GPIO_PIN_PA_PDET, ADC_0db);
+        return DURATION_IMMEDIATELY;
+    }
+    return DURATION_NEVER;
 }
 
 /**
@@ -41,7 +48,7 @@ static int start()
  */
 static int event()
 {
-    if (connectionState > connectionState_e::MODE_STATES)
+    if (GPIO_PIN_PA_PDET == UNDEF_PIN || connectionState > connectionState_e::MODE_STATES)
     {
         return DURATION_NEVER;
     }
@@ -50,7 +57,11 @@ static int event()
 
 static int timeout()
 {
-    pdet_storage_t newPdetScaled = PDET_MV_SCALE(getADCReading(ADC_PA_PDET));
+    if (!busyTransmitting) return DURATION_IMMEDIATELY;
+
+    pdet_storage_t newPdetScaled = PDET_MV_SCALE(analogReadMilliVolts(GPIO_PIN_PA_PDET));
+
+    if (!busyTransmitting) return PDET_BUSY_PERIODMS; // Check transmission did not stop during Pdet measurement.
 
     uint8_t targetPowerDbm = POWERMGNT::getPowerIndBm();
     if (PdetMvScaled == 0 || lastTargetPowerdBm != targetPowerDbm)
@@ -82,10 +93,9 @@ static int timeout()
 }
 
 device_t PDET_device = {
-    .initialize = initialize,
+    .initialize = NULL,
     .start = start,
     .event = event,
-    .timeout = timeout,
-    .subscribe = EVENT_CONNECTION_CHANGED
+    .timeout = timeout
 };
 #endif
