@@ -34,7 +34,8 @@
       "jlink",
       "stlink",
       "blackmagic",
-      "mbed"
+      "mbed",
+      "dfu"
     ]
   },
   "url": "https://www.st.com/en/microcontrollers-microprocessors/stm32l432kb.html",
