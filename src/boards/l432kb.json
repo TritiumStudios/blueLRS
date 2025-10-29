@@ -29,7 +29,7 @@
   "upload": {
     "maximum_ram_size": 65536,
     "maximum_size": 131072,
-    "protocol": "dfu",
+    "protocol": "stlink",
     "protocols": [
       "dfu",
       "jlink",
