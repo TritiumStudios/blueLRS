@@ -50,8 +50,8 @@ def upload_wifi(args, options, upload_addr, isstm: bool):
 def upload_stm32_dfu(args, options):
     """
     Flash STM32 firmware using dfu-util.
+    Works on Windows even with spaces in paths.
     """
-    # Locate dfu-util.exe (assumes it's in ./dependencies/windows_amd64/dfu-util/dfu-util.exe)
     script_dir = os.path.dirname(os.path.abspath(__file__))
     dfu_path = os.path.join(script_dir, "dfu-util", "dfu-util.exe")
 
@@ -59,7 +59,10 @@ def upload_stm32_dfu(args, options):
         print(f"Error: dfu-util not found at {dfu_path}")
         return ElrsUploadResult.ErrorGeneral
 
+    # Absolute path to firmware inside project
     firmware_path = os.path.abspath(args.file.name)
+
+    # Build the command as a list to handle spaces correctly
     command = [
         dfu_path,
         "--alt", "0",
@@ -67,14 +70,15 @@ def upload_stm32_dfu(args, options):
         "--download", firmware_path
     ]
 
-    print("Running:", " ".join(command))
-    result = os.system(" ".join(f'"{x}"' if " " in x else x for x in command))
+    print("Running:", " ".join(f'"{x}"' if " " in x else x for x in command))
 
-    if result == 0:
+    # Use subprocess to run command safely
+    try:
+        subprocess.run(command, check=True)
         print("DFU upload successful.")
         return ElrsUploadResult.Success
-    else:
-        print("DFU upload failed.")
+    except subprocess.CalledProcessError as e:
+        print(f"DFU upload failed: {e}")
         return ElrsUploadResult.ErrorGeneral
 
 
@@ -192,8 +196,11 @@ def upload(options: FirmwareOptions, args):
         if args.flash == UploadMethod.betaflight:
             args.baud = 420000
 
+    # Directory or stock copy
     if args.flash == UploadMethod.dir or args.flash == UploadMethod.stock:
         return upload_dir(options.mcuType, args)
+
+    # RX devices
     elif options.deviceType == DeviceType.RX:
         if options.mcuType == MCUType.ESP8266:
             if args.flash == UploadMethod.betaflight:
@@ -210,10 +217,12 @@ def upload(options: FirmwareOptions, args):
             elif args.flash == UploadMethod.wifi:
                 return upload_wifi(args, options, ['elrs_rx', 'elrs_rx.local'], False)
         elif options.mcuType == MCUType.STM32:
-            if args.flash == UploadMethod.betaflight or args.flash == UploadMethod.uart:
+            if args.flash in [UploadMethod.betaflight, UploadMethod.uart]:
                 return upload_stm32_uart(args, options)
-            elif args.flash == UploadMethod.stlink:      # untested
+            elif args.flash == UploadMethod.stlink:
                 return upload_stm32_stlink(args, options)
+
+    # TX devices
     else:
         if options.mcuType == MCUType.ESP8266:
             if args.flash == UploadMethod.uart:
@@ -230,9 +239,10 @@ def upload(options: FirmwareOptions, args):
         elif options.mcuType == MCUType.STM32:
             if args.flash == UploadMethod.stlink:
                 return upload_stm32_stlink(args, options)
-            elif args.flash == UploadMethod.dfu:  
+            elif args.flash == UploadMethod.dfu:  # <-- DFU support
                 return upload_stm32_dfu(args, options)
             elif args.flash == UploadMethod.wifi:
                 return upload_wifi(args, options, ['elrs_txbp', 'elrs_txbp.local'], True)
+
     print("Invalid upload method for firmware")
     return ElrsUploadResult.ErrorGeneral
