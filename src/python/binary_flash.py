@@ -20,6 +20,7 @@ from external.esptool import esptool
 sys.path.append(dirname(__file__) + "/external")
 
 import external.pystlink
+import subprocess
 
 class UploadMethod(Enum):
     wifi = 'wifi'
