@@ -29,6 +29,7 @@ class UploadMethod(Enum):
     stlink = 'stlink'
     stock = 'stock'
     dir = 'dir'
+    dfu = 'dfu'
 
     def __str__(self):
         return self.value
@@ -45,6 +46,37 @@ def upload_wifi(args, options, upload_addr, isstm: bool):
         return upload_via_esp8266_backpack.do_upload('firmware.bin.gz', wifi_mode, upload_addr, isstm, {})
     else:
         return upload_via_esp8266_backpack.do_upload(args.file.name, wifi_mode, upload_addr, isstm, {})
+
+def upload_stm32_dfu(args, options):
+    """
+    Flash STM32 firmware using dfu-util.
+    """
+    # Locate dfu-util.exe (assumes it's in ./dependencies/windows_amd64/dfu-util/dfu-util.exe)
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    dfu_path = os.path.join(script_dir, "dfu-util", "dfu-util.exe")
+
+    if not os.path.exists(dfu_path):
+        print(f"Error: dfu-util not found at {dfu_path}")
+        return ElrsUploadResult.ErrorGeneral
+
+    firmware_path = os.path.abspath(args.file.name)
+    command = [
+        dfu_path,
+        "--alt", "0",
+        "--dfuse-address", "0x08000000:leave",
+        "--download", firmware_path
+    ]
+
+    print("Running:", " ".join(command))
+    result = os.system(" ".join(f'"{x}"' if " " in x else x for x in command))
+
+    if result == 0:
+        print("DFU upload successful.")
+        return ElrsUploadResult.Success
+    else:
+        print("DFU upload failed.")
+        return ElrsUploadResult.ErrorGeneral
+
 
 def upload_stm32_uart(args, options):
     if args.port == None:
@@ -196,8 +228,10 @@ def upload(options: FirmwareOptions, args):
             elif args.flash == UploadMethod.wifi:
                 return upload_wifi(args, options, ['elrs_tx', 'elrs_tx.local'], False)
         elif options.mcuType == MCUType.STM32:
-            if args.flash == UploadMethod.stlink:      # test
+            if args.flash == UploadMethod.stlink:
                 return upload_stm32_stlink(args, options)
+            elif args.flash == UploadMethod.dfu:  
+                return upload_stm32_dfu(args, options)
             elif args.flash == UploadMethod.wifi:
                 return upload_wifi(args, options, ['elrs_txbp', 'elrs_txbp.local'], True)
     print("Invalid upload method for firmware")
