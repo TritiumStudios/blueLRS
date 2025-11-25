@@ -2,6 +2,7 @@
 #define DEVICE_NAME "Ewing Aero 2400TX"
 #endif
 #define TARGET_ELRSSX1280TX_PCB
+#define USE_SX1280_DCDC
 #define BACKPACK_LOGGING_BAUD 420000
 // GPIO pin definitions
 #define GPIO_PIN_NSS PA4
@@ -23,18 +24,11 @@
 #define GPIO_PIN_LED GPIO_PIN_LED_RED
 #define RADIO_SX1280
 // Output Power
-#define MinPower            PWR_10mW     // ~10 dBm
-//#define HighPower           PWR_100mW    // ~20 dBm
-#define MaxPower            PWR_1000mW       // ~30 dBm
+#define MinPower            PWR_10mW
+#define MaxPower            PWR_1000mW
+#define DefaultPower        PWR_250mW
 // SX1280 drive in dBm for each UI step: 10mW, 25mW, 50mW, 100mW, 250mW, 500mW, 1000mW
-#define POWER_OUTPUT_VALUES { -10, -6, -3, 0, 4, 7, 9 }
-
-
-
-
-
-
-
+#define POWER_OUTPUT_VALUES {-18, -14, -10, -6, -2, 2, 6}
 
 
 

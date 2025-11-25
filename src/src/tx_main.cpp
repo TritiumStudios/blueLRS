@@ -1371,7 +1371,11 @@ static void setupBindingFromConfig()
 
     DBGLN("UID=(%d, %d, %d, %d, %d, %d)",
           UID[0], UID[1], UID[2], UID[3], UID[4], UID[5]);
-
+          
+    uint32_t seed = HAL_GetTick() ^ (uintptr_t)&UID ^ (UID[0] << 16 | UID[5]);
+    for (int i = 0; i < 6; i++) {
+        UID[i] ^= (uint8_t)((seed >> ((i * 5) % 24)) & 0xFF);
+    }
     OtaUpdateCrcInitFromUid();
 }
 
