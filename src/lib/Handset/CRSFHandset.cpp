@@ -52,9 +52,21 @@ static const int32_t OpenTXsyncPacketInterval = 200;    // in ms
 static const int32_t OpenTXsyncOffsetSafeMargin = 1000; // 100us
 
 /// UART Handling ///
-static const int32_t TxToHandsetBauds[] = {400000, 115200, 5250000, 3750000, 1870000, 921600, 2250000};
-uint8_t CRSFHandset::UARTcurrentBaudIdx = 6; // only used for baud-cycling, initialized to the end so the next one we try is the first in the list
+#if defined(TARGET_ELRSSX1280TX_Repeater_PCB)
+
+static const int32_t TxToHandsetBauds[] = {420000};
+uint8_t CRSFHandset::UARTcurrentBaudIdx = 0;
+uint32_t CRSFHandset::UARTrequestedBaud = 420000;
+
+#else
+
+static const int32_t TxToHandsetBauds[] = {
+    400000, 115200, 5250000, 3750000, 1870000, 921600, 2250000
+};
+uint8_t CRSFHandset::UARTcurrentBaudIdx = 6;
 uint32_t CRSFHandset::UARTrequestedBaud = 5250000;
+
+#endif
 
 // for the UART wdt, every 1000ms we change bauds when connect is lost
 static const int UARTwdtInterval = 1000;
@@ -132,6 +144,14 @@ void CRSFHandset::Begin()
     USART2->CR1 &= ~USART_CR1_UE;
     USART2->CR2 |= USART_CR2_RXINV | USART_CR2_TXINV; // inverted
     USART2->CR1 |= USART_CR1_UE;
+#elif defined(TARGET_ELRSSX1280TX_Repeater_PCB)
+    LL_GPIO_SetPinPull(GPIOB, GPIO_PIN_6, LL_GPIO_PULL_NO); // default is PULLUP
+    USART1->CR1 &= ~USART_CR1_UE;
+    // USART1->CR3 |= USART_CR3_HDSEL;
+    //  USART1->CR1 |= USART_CR1_RE;  // keep receiver enabled
+    //  USART1->CR1 &= ~USART_CR1_TE; // TX driver off (Hi-Z) at idle
+    USART1->CR2 &= ~(USART_CR2_RXINV | USART_CR2_TXINV);
+    USART1->CR1 |= USART_CR1_UE;
 #elif defined(TARGET_ELRSSX1280TX_PCB)
     LL_GPIO_SetPinPull(GPIOB, GPIO_PIN_6, LL_GPIO_PULL_NO); // default is PULLUP
     USART1->CR1 &= ~USART_CR1_UE;
@@ -847,6 +867,16 @@ bool CRSFHandset::UARTwdt()
                 USART2->CR1 &= ~USART_CR1_UE;
                 USART2->CR2 |= USART_CR2_RXINV | USART_CR2_TXINV; // inverted
                 USART2->CR1 |= USART_CR1_UE;
+#elif defined(TARGET_ELRSSX1280TX_Repeater_PCB)
+                CRSFHandset::Port.begin(UARTrequestedBaud);
+                LL_GPIO_SetPinPull(GPIOB, GPIO_PIN_6, LL_GPIO_PULL_NO); // default is PULLUP
+                USART1->CR1 &= ~USART_CR1_UE;
+                // USART1->CR3 |= USART_CR3_HDSEL;
+                //  USART1->CR1 |= USART_CR1_RE;
+                //  USART1->CR1 &= ~USART_CR1_TE;
+                USART1->CR2 &= ~(USART_CR2_RXINV | USART_CR2_TXINV);
+                USART1->CR1 |= USART_CR1_UE;
+                // GPIOB->PUPDR &= ~(0x3u << (6 * 2));
 #elif defined(TARGET_ELRSSX1280TX_PCB)
                 CRSFHandset::Port.begin(UARTrequestedBaud);
                 LL_GPIO_SetPinPull(GPIOB, GPIO_PIN_6, LL_GPIO_PULL_NO); // default is PULLUP
